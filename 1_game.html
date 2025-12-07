@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Кликер в TG</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
+    body {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      overflow: hidden;
+    }
+    .game { text-align: center; max-width: 90vw; }
+    .score { font-size: clamp(28px, 8vw, 48px); margin-bottom: 20px; font-weight: bold; }
+    .btn {
+      width: clamp(140px, 45vw, 220px);
+      height: clamp(140px, 45vw, 220px);
+      border-radius: 50%;
+      border: none;
+      background: radial-gradient(circle, #ffeb3b 0%, #ff9800 70%, #f57c00 100%);
+      box-shadow: 0 15px 35px rgba(255,152,0,0.5);
+      font-size: clamp(20px, 5vw, 28px);
+      font-weight: bold;
+      color: #333;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+    .btn:active { transform: scale(0.95); box-shadow: 0 8px 20px rgba(255,152,0,0.4); }
+    .timer, .record { font-size: clamp(18px, 4vw, 24px); margin: 10px 0; }
+    .restart { padding: 12px 24px; border-radius: 25px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 16px; cursor: pointer; display: none; margin-top: 15px; }
+    #user-info { position: absolute; top: 10px; left: 10px; font-size: 14px; opacity: 0.8; }
+  </style>
+</head>
+<body>
+  <div id="user-info"></div>
+  <div class="game">
+    <div class="score">Очки: <span id="score">0</span></div>
+    <button class="btn" id="clickBtn">ТАП!</button>
+    <div class="timer">⏰ <span id="time">10</span> сек</div>
+    <div class="record">Рекорд: <span id="record">0</span></div>
+    <button class="restart" id="restartBtn">Играть снова</button>
+  </div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.expand(); // Полноэкранный режим
+    
+    // Инфо о пользователе
+    const userInfo = document.getElementById('user-info');
+    userInfo.textContent = `👤 ${tg.initDataUnsafe.user?.first_name || 'Гость'}`;
+
+    const scoreEl = document.getElementById('score');
+    const timeEl = document.getElementById('time');
+    const recordEl = document.getElementById('record');
+    const clickBtn = document.getElementById('clickBtn');
+    const restartBtn = document.getElementById('restartBtn');
+
+    let score = 0, time = 10, playing = true, timerId, record = localStorage.getItem('tg_record') || 0;
+    recordEl.textContent = record;
+
+    function startTimer() {
+      timerId = setInterval(() => {
+        time--;
+        timeEl.textContent = time;
+        if (time <= 0) endGame();
+      }, 1000);
+    }
+
+    function endGame() {
+      playing = false;
+      clearInterval(timerId);
+      clickBtn.disabled = true;
+      clickBtn.textContent = 'Конец!';
+      restartBtn.style.display = 'block';
+      
+      if (score > record) {
+        record = score;
+        localStorage.setItem('tg_record', record);
+        recordEl.textContent = record;
+        tg.showAlert(`🆕 Новый рекорд: ${record}!`);
+        tg.MainButton.setText(`Рекорд: ${record}`).show();
+      }
+    }
+
+    clickBtn.onclick = (e) => {
+      e.preventDefault();
+      if (!playing) return;
+      score++;
+      scoreEl.textContent = score;
+    };
+
+    restartBtn.onclick = () => {
+      score = time = 10; playing = true;
+      scoreEl.textContent = score;
+      timeEl.textContent = time;
+      clickBtn.disabled = false;
+      clickBtn.textContent = 'ТАП!';
+      restartBtn.style.display = 'none';
+      tg.MainButton.hide();
+      startTimer();
+    };
+
+    tg.MainButton.onClick(() => tg.close());
+    startTimer();
+  </script>
+</body>
+</html>
