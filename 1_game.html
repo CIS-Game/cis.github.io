@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>🚀 Кликер TG</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+      touch-action: manipulation; 
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      overflow: hidden;
+    }
+    #user-info {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      font-size: 14px;
+      opacity: 0.9;
+      z-index: 10;
+    }
+    .game {
+      text-align: center;
+      max-width: 90vw;
+      padding: 20px;
+    }
+    .score {
+      font-size: clamp(28px, 8vw, 48px);
+      margin-bottom: 25px;
+      font-weight: bold;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+    .btn {
+      width: clamp(140px, 45vw, 220px);
+      height: clamp(140px, 45vw, 220px);
+      border-radius: 50%;
+      border: none;
+      background: radial-gradient(circle at 30% 30%, #ffeb3b 0%, #ff9800 70%, #f57c00 100%);
+      box-shadow: 0 15px 40px rgba(255,152,0,0.5), inset 0 4px 12px rgba(255,255,255,0.3);
+      font-size: clamp(20px, 5vw, 28px);
+      font-weight: bold;
+      color: #333;
+      cursor: pointer;
+      transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+    }
+    .btn:active {
+      transform: scale(0.92) translateY(3px);
+      box-shadow: 0 6px 20px rgba(255,152,0,0.4);
+    }
+    .timer, .record {
+      font-size: clamp(18px, 4.5vw, 24px);
+      margin: 12px 0;
+      opacity: 0.92;
+    }
+    .restart {
+      margin-top: 20px;
+      padding: 12px 28px;
+      font-size: clamp(16px, 4vw, 18px);
+      border-radius: 30px;
+      border: none;
+      background: rgba(255,255,255,0.25);
+      color: #fff;
+      cursor: pointer;
+      backdrop-filter: blur(15px);
+      font-weight: 500;
+      display: none;
+      transition: all 0.2s ease;
+    }
+    .restart:hover {
+      background: rgba(255,255,255,0.35);
+      transform: translateY(-1px);
+    }
+    @media (orientation: landscape) {
+      body { flex-direction: row; justify-content: center; align-items: center; }
+      .game { max-width: 50vw; }
+    }
+  </style>
+</head>
+<body>
+  <div id="user-info">Загрузка...</div>
+  <div class="game">
+    <div class="score">Очки: <span id="score">0</span></div>
+    <button class="btn" id="clickBtn">ТАП!</button>
+    <div class="timer">⏰ <span id="time">10</span> сек</div>
+    <div class="record">Рекорд: <span id="record">0</span></div>
+    <button class="restart" id="restartBtn">🎮 Новая игра</button>
+  </div>
+
+  <script>
+    // ✅ Telegram Web App API
+    const tg = window.Telegram.WebApp;
+    tg.expand(); // Полноэкранный режим
+    tg.enableClosingByOutsideTap = true;
+    
+    // 👤 Имя пользователя
+    const userInfo = document.getElementById('user-info');
+    const userName = tg.initDataUnsafe?.user?.first_name || 'Игрок';
+    userInfo.textContent = `👤 ${userName}`;
+
+    // 🎮 Игровые элементы
+    const scoreEl = document.getElementById('score');
+    const timeEl = document.getElementById('time');
+    const recordEl = document.getElementById('record');
+    const clickBtn = document.getElementById('clickBtn');
+    const restartBtn = document.getElementById('restartBtn');
+
+    let score = 0;
+    let time = 10;
+    let playing = true;
+    let timerId;
+    let record = parseInt(localStorage.getItem('tg_clicker_record') || '0');
+    recordEl.textContent = record;
+
+    // ⏱️ Таймер
+    function startTimer() {
+      timerId = setInterval(() => {
+        time--;
+        timeEl.textContent = time;
+        if (time <= 0) endGame();
+      }, 1000);
+    }
+
+    // 🏁 Конец игры
+    function endGame() {
+      playing = false;
+      clearInterval(timerId);
+      clickBtn.disabled = true;
+      clickBtn.textContent = '🎉 Конец!';
+      restartBtn.style.display = 'inline-block';
+      
+      // 📊 Новый рекорд?
+      if (score > record) {
+        record = score;
+        localStorage.setItem('tg_clicker_record', record);
+        recordEl.textContent = record;
+        tg.showAlert(`🆕 Новый рекорд: ${record} очков!`);
+        tg.HapticFeedback.notificationOccurred('success');
+      }
+      
+      // 🔘 Главная кнопка TG
+      tg.MainButton.setText(`Рекорд: ${record}`).show();
+    }
+
+    // 👆 Клик по кнопке
+    clickBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (!playing) return;
+      
+      score++;
+      scoreEl.textContent = score;
+      tg.HapticFeedback.impactOccurred('light'); // 📱 Вибрация
+    });
+
+    // 🔄 Перезапуск
+    restartBtn.addEventListener('click', () => {
+      score = 0;
+      time = 10;
+      playing = true;
+      
+      scoreEl.textContent = score;
+      timeEl.textContent = time;
+      clickBtn.disabled = false;
+      clickBtn.textContent = 'ТАП!';
+      restartBtn.style.display = 'none';
+      
+      tg.MainButton.hide();
+      tg.HapticFeedback.notificationOccurred('success');
+      startTimer();
+    });
+
+    // ❌ Закрытие через главную кнопку TG
+    tg.MainButton.onClick(tg.close);
+
+    // 🚀 Автозапуск
+    startTimer();
+    tg.ready();
+  </script>
+</body>
+</html>
